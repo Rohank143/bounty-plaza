@@ -15,7 +15,7 @@ When an ASGI application runs behind a reverse proxy emitting standard RFC 7239 
 
 ## Deliverables
 - `solutions/issue_4171/asgi_forwarded.py`: Complete implementation of RFC 7239 normalization functions, `Request`, `SubScope`, and `Router`.
-- `solutions/issue_4171/test_asgi_forwarded.py`: 6 unit test cases covering authority preservation, port preservation, absence fallback, and router path integration.
+- `solutions/issue_4171/test_asgi_forwarded.py`: 7 unit test cases covering authority preservation, port preservation, scheme extraction, absence fallback, and router path integration (10.0/10 pylint rating).
 
 ## Upstream References
 - Original Bounty: [WholeTroutMedia/oss-verification-sandbox#1](https://github.com/WholeTroutMedia/oss-verification-sandbox/issues/1)
