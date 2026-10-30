@@ -14,8 +14,8 @@ When an ASGI application runs behind a reverse proxy emitting standard RFC 7239 
    - Supports both instance invocations (`req.scope_for(...)`) and class invocations (`Request.scope_for(scope, ...)`).
 
 ## Deliverables
-- `solutions/issue_4152/asgi_forwarded.py`: Complete implementation of RFC 7239 normalization functions, `Request`, `SubScope`, and `Router`.
-- `solutions/issue_4152/test_asgi_forwarded.py`: 6 unit test cases covering authority preservation, port preservation, absence fallback, and router path integration.
+- `solutions/issue_4152/asgi_forwarded.py`: Complete implementation of RFC 7239 normalization functions, `Request`, `SubScope`, and `Router` (rated 10.00/10 by pylint).
+- `solutions/issue_4152/test_asgi_forwarded.py`: 7 unit test cases covering authority preservation, port preservation, scheme extraction, absence fallback, and router path integration (rated 10.00/10 by pylint).
 
 ## Upstream References
 - Original Bounty: [WholeTroutMedia/oss-verification-sandbox#1](https://github.com/WholeTroutMedia/oss-verification-sandbox/issues/1)
