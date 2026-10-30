@@ -4,7 +4,7 @@ Resolves Issue #4168:
 Preserve RFC 7239 `Forwarded` host authority in sub-mounted ASGI `Request.scope_for`.
 """
 
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple
 
 
 def _rfc7239_forwarded_nonce_9f4a(scope: dict) -> str:
@@ -54,6 +54,33 @@ def _rfc7239_forwarded_proto(scope: dict) -> str:
     return ""
 
 
+def _resolve_server_and_authority(
+    scope: dict, forwarded_host: str, forwarded_proto: str
+) -> Tuple[Optional[Tuple[str, int]], Optional[str]]:
+    """Determine server tuple and authority string based on headers or scope."""
+    if forwarded_host:
+        if ":" in forwarded_host:
+            host_str, port_str = forwarded_host.split(":", 1)
+            port = int(port_str)
+        else:
+            host_str = forwarded_host
+            orig_server = scope.get("server")
+            orig_port = orig_server[1] if orig_server else 80
+            port = 443 if forwarded_proto == "https" and orig_port == 80 else orig_port
+        return (host_str, port), forwarded_host
+
+    if "server" in scope:
+        server_host, server_port = scope["server"][0], scope["server"][1]
+        authority = (
+            f"{server_host}:{server_port}"
+            if server_port not in (80, 443)
+            else server_host
+        )
+        return scope["server"], authority
+
+    return None, None
+
+
 class SubScope:
     """Wrapped sub-mounted ASGI scope mapping."""
 
@@ -75,9 +102,11 @@ class SubScope:
         return key in self._scope
 
     def get(self, key: str, default: Any = None) -> Any:
+        """Get an item from the scope or return default."""
         return self._scope.get(key, default)
 
     def to_dict(self) -> dict:
+        """Return a shallow dictionary copy of the scope."""
         return dict(self._scope)
 
 
@@ -88,9 +117,11 @@ class Router:
         self.routes: Dict[str, str] = {}
 
     def add_route(self, name: str, path_pattern: str) -> None:
+        """Register a URL path pattern under a route name."""
         self.routes[name] = path_pattern
 
     def url_path_for(self, name: str, **path_params) -> str:
+        """Resolve a route pattern by name substituting path parameters."""
         if name not in self.routes:
             raise KeyError(f"Route named '{name}' not found")
         pattern = self.routes[name]
@@ -99,7 +130,7 @@ class Router:
         return pattern
 
 
-class Request:
+class Request:  # pylint: disable=too-few-public-methods
     """ASGI HTTP Request encapsulation with RFC 7239 authority preservation."""
 
     def __init__(self, scope: dict, router: Optional[Router] = None):
@@ -114,9 +145,10 @@ class Request:
         name: Optional[str] = None,
         **path_params,
     ) -> SubScope:
-        """Resolve a sub-mounted route scope while preserving RFC 7239 Forwarded host authority.
+        """Resolve a sub-mounted route scope while preserving RFC 7239 Forwarded host.
 
-        Supports both instance calls `req.scope_for(...)` and class calls `Request.scope_for(scope, ...)`.
+        Supports both instance calls `req.scope_for(...)` and class calls
+        `Request.scope_for(scope, ...)`.
         """
         if isinstance(self, Request):
             scope = self.scope
@@ -163,26 +195,13 @@ class Request:
         forwarded_host = _rfc7239_forwarded_nonce_9f4a(scope)
         forwarded_proto = _rfc7239_forwarded_proto(scope)
 
-        if forwarded_host:
-            if ":" in forwarded_host:
-                h, p = forwarded_host.split(":", 1)
-                port = int(p)
-            else:
-                h = forwarded_host
-                orig_server = scope.get("server")
-                orig_port = orig_server[1] if orig_server else 80
-                port = 443 if forwarded_proto == "https" and orig_port == 80 else orig_port
-            sub["server"] = (h, port)
-            sub["host_authority"] = forwarded_host
-        elif "server" in scope:
-            sub["server"] = scope["server"]
-            server_host = scope["server"][0]
-            server_port = scope["server"][1]
-            sub["host_authority"] = (
-                f"{server_host}:{server_port}"
-                if server_port not in (80, 443)
-                else server_host
-            )
+        server_tuple, authority = _resolve_server_and_authority(
+            scope, forwarded_host, forwarded_proto
+        )
+        if server_tuple is not None:
+            sub["server"] = server_tuple
+        if authority is not None:
+            sub["host_authority"] = authority
 
         if forwarded_proto:
             sub["scheme"] = forwarded_proto
